@@ -6,12 +6,12 @@ Object.defineProperty(exports, "__esModule", {
 exports.Bezier = void 0;
 // math-inlining.
 const {
-  abs,
-  cos,
-  sin,
-  acos,
+  abs: abs$1,
+  cos: cos$1,
+  sin: sin$1,
+  acos: acos$1,
   atan2,
-  sqrt,
+  sqrt: sqrt$1,
   pow
 } = Math; // cube root function yielding real roots
 
@@ -20,9 +20,9 @@ function crt(v) {
 } // trig constants
 
 
-const pi = Math.PI,
-      tau = 2 * pi,
-      quart = pi / 2,
+const pi$1 = Math.PI,
+      tau = 2 * pi$1,
+      quart = pi$1 / 2,
       // float precision significant decimal
 epsilon = 0.000001,
       // extremas used in bbox calculation and similar algorithms
@@ -48,7 +48,7 @@ const utils = {
       l += d.z * d.z;
     }
 
-    return sqrt(l);
+    return sqrt$1(l);
   },
   compute: function (t, points, _3d) {
     // shortcuts
@@ -225,7 +225,7 @@ const utils = {
     return m <= v && v <= M || utils.approximately(v, m) || utils.approximately(v, M);
   },
   approximately: function (a, b, precision) {
-    return abs(a - b) <= (precision || epsilon);
+    return abs$1(a - b) <= (precision || epsilon);
   },
   length: function (derivativeFn) {
     const z = 0.5,
@@ -291,7 +291,7 @@ const utils = {
   dist: function (p1, p2) {
     const dx = p1.x - p2.x,
           dy = p1.y - p2.y;
-    return sqrt(dx * dx + dy * dy);
+    return sqrt$1(dx * dx + dy * dy);
   },
   closest: function (LUT, point) {
     let mdist = pow(2, 63),
@@ -324,7 +324,7 @@ const utils = {
 
     const bottom = pow(t, n) + pow(1 - t, n),
           top = bottom - 1;
-    return abs(top / bottom);
+    return abs$1(top / bottom);
   },
   projectionratio: function (t, n) {
     // see u(t) note on http://pomax.github.io/bezierinfo/#abc
@@ -491,8 +491,8 @@ const utils = {
           a = -atan2(line.p2.y - ty, line.p2.x - tx),
           d = function (v) {
       return {
-        x: (v.x - tx) * cos(a) - (v.y - ty) * sin(a),
-        y: (v.x - tx) * sin(a) + (v.y - ty) * cos(a)
+        x: (v.x - tx) * cos$1(a) - (v.y - ty) * sin$1(a),
+        y: (v.x - tx) * sin$1(a) + (v.y - ty) * cos$1(a)
       };
     };
 
@@ -523,7 +523,7 @@ const utils = {
             d = a - 2 * b + c;
 
       if (d !== 0) {
-        const m1 = -sqrt(b * b - a * c),
+        const m1 = -sqrt$1(b * b - a * c),
               m2 = -a + b,
               v1 = -(m1 + m2) / d,
               v2 = -(-m1 + m2) / d;
@@ -559,7 +559,7 @@ const utils = {
       } // quadratic solution:
 
 
-      const q = sqrt(b * b - 4 * a * c),
+      const q = sqrt$1(b * b - 4 * a * c),
             a2 = 2 * a;
       return [(q - b) / a2, (-b - q) / a2].filter(reduce);
     } // at this point, we know we need a cubic solution:
@@ -578,15 +578,15 @@ const utils = {
     if (discriminant < 0) {
       const mp3 = -p / 3,
             mp33 = mp3 * mp3 * mp3,
-            r = sqrt(mp33),
+            r = sqrt$1(mp33),
             t = -q / (2 * r),
             cosphi = t < -1 ? -1 : t > 1 ? 1 : t,
-            phi = acos(cosphi),
+            phi = acos$1(cosphi),
             crtr = crt(r),
             t1 = 2 * crtr;
-      x1 = t1 * cos(phi / 3) - a / 3;
-      x2 = t1 * cos((phi + tau) / 3) - a / 3;
-      x3 = t1 * cos((phi + 2 * tau) / 3) - a / 3;
+      x1 = t1 * cos$1(phi / 3) - a / 3;
+      x2 = t1 * cos$1((phi + tau) / 3) - a / 3;
+      x3 = t1 * cos$1((phi + 2 * tau) / 3) - a / 3;
       return [x1, x2, x3].filter(reduce);
     } else if (discriminant === 0) {
       u1 = q2 < 0 ? crt(-q2) : -crt(q2);
@@ -594,7 +594,7 @@ const utils = {
       x2 = -u1 - a / 3;
       return [x1, x2].filter(reduce);
     } else {
-      const sd = sqrt(discriminant);
+      const sd = sqrt$1(discriminant);
       u1 = crt(-q2 + sd);
       v1 = crt(q2 + sd);
       return [u1 - v1 - a / 3].filter(reduce);
@@ -609,7 +609,7 @@ const utils = {
             d = a - 2 * b + c;
 
       if (d !== 0) {
-        const m1 = -sqrt(b * b - a * c),
+        const m1 = -sqrt$1(b * b - a * c),
               m2 = -a + b,
               v1 = -(m1 + m2) / d,
               v2 = -(-m1 + m2) / d;
@@ -662,7 +662,7 @@ const utils = {
     const qdsum = d.x * d.x + d.y * d.y;
 
     if (_3d) {
-      num = sqrt(pow(d.y * dd.z - dd.y * d.z, 2) + pow(d.z * dd.x - dd.z * d.x, 2) + pow(d.x * dd.y - dd.x * d.y, 2));
+      num = sqrt$1(pow(d.y * dd.z - dd.y * d.z, 2) + pow(d.z * dd.x - dd.z * d.x, 2) + pow(d.x * dd.y - dd.x * d.y, 2));
       dnm = pow(qdsum + d.z * d.z, 3 / 2);
     } else {
       num = d.x * dd.y - d.y * dd.x;
@@ -688,7 +688,7 @@ const utils = {
       const pk = utils.curvature(t - 0.001, d1, d2, _3d, true).k;
       const nk = utils.curvature(t + 0.001, d1, d2, _3d, true).k;
       dk = (nk - k + (k - pk)) / 2;
-      adk = (abs(nk - k) + abs(k - pk)) / 2;
+      adk = (abs$1(nk - k) + abs$1(k - pk)) / 2;
     }
 
     return {
@@ -739,7 +739,7 @@ const utils = {
       l = b1[dim].mid;
       t = b2[dim].mid;
       d = (b1[dim].size + b2[dim].size) / 2;
-      if (abs(l - t) >= d) return false;
+      if (abs$1(l - t) >= d) return false;
     }
 
     return true;
@@ -826,10 +826,10 @@ const utils = {
           dy1 = p2.y - p1.y,
           dx2 = p3.x - p2.x,
           dy2 = p3.y - p2.y,
-          dx1p = dx1 * cos(quart) - dy1 * sin(quart),
-          dy1p = dx1 * sin(quart) + dy1 * cos(quart),
-          dx2p = dx2 * cos(quart) - dy2 * sin(quart),
-          dy2p = dx2 * sin(quart) + dy2 * cos(quart),
+          dx1p = dx1 * cos$1(quart) - dy1 * sin$1(quart),
+          dy1p = dx1 * sin$1(quart) + dy1 * cos$1(quart),
+          dx2p = dx2 * cos$1(quart) - dy2 * sin$1(quart),
+          dy2p = dx2 * sin$1(quart) + dy2 * cos$1(quart),
           // chord midpoints
     mx1 = (p1.x + p2.x) / 2,
           my1 = (p1.y + p2.y) / 2,
@@ -960,15 +960,15 @@ class PolyBezier {
 
 
 const {
-  abs: abs$1,
+  abs,
   min,
   max,
-  cos: cos$1,
-  sin: sin$1,
-  acos: acos$1,
-  sqrt: sqrt$1
+  cos,
+  sin,
+  acos,
+  sqrt
 } = Math;
-const pi$1 = Math.PI;
+const pi = Math.PI;
 /**
  * Bezier curve constructor.
  *
@@ -1037,7 +1037,7 @@ class Bezier {
       p1: points[0],
       p2: points[order]
     });
-    this._linear = !aligned.some(p => abs$1(p.y) > 0.0001);
+    this._linear = !aligned.some(p => abs(p.y) > 0.0001);
     this._lut = [];
     this._t1 = 0;
     this._t2 = 1;
@@ -1326,11 +1326,11 @@ class Bezier {
   }
 
   derivative(t) {
-    return utils.compute(t, this.dpoints[0]);
+    return utils.compute(t, this.dpoints[0], this._3d);
   }
 
   dderivative(t) {
-    return utils.compute(t, this.dpoints[1]);
+    return utils.compute(t, this.dpoints[1], this._3d);
   }
 
   align() {
@@ -1355,7 +1355,7 @@ class Bezier {
 
   __normal2(t) {
     const d = this.derivative(t);
-    const q = sqrt$1(d.x * d.x + d.y * d.y);
+    const q = sqrt(d.x * d.x + d.y * d.y);
     return {
       x: -d.y / q,
       y: d.x / q
@@ -1366,8 +1366,8 @@ class Bezier {
     // see http://stackoverflow.com/questions/25453159
     const r1 = this.derivative(t),
           r2 = this.derivative(t + 0.01),
-          q1 = sqrt$1(r1.x * r1.x + r1.y * r1.y + r1.z * r1.z),
-          q2 = sqrt$1(r2.x * r2.x + r2.y * r2.y + r2.z * r2.z);
+          q1 = sqrt(r1.x * r1.x + r1.y * r1.y + r1.z * r1.z),
+          q2 = sqrt(r2.x * r2.x + r2.y * r2.y + r2.z * r2.z);
     r1.x /= q1;
     r1.y /= q1;
     r1.z /= q1;
@@ -1380,7 +1380,7 @@ class Bezier {
       y: r2.z * r1.x - r2.x * r1.z,
       z: r2.x * r1.y - r2.y * r1.x
     };
-    const m = sqrt$1(c.x * c.x + c.y * c.y + c.z * c.z);
+    const m = sqrt(c.x * c.x + c.y * c.y + c.z * c.z);
     c.x /= m;
     c.y /= m;
     c.z /= m; // rotation matrix
@@ -1558,7 +1558,7 @@ class Bezier {
       s += n1.z * n2.z;
     }
 
-    return abs$1(acos$1(s)) < pi$1 / 3;
+    return abs(acos(s)) < pi / 3;
   }
 
   reduce() {
@@ -1602,7 +1602,7 @@ class Bezier {
           if (!segment.simple()) {
             t2 -= step;
 
-            if (abs$1(t1 - t2) < step) {
+            if (abs(t1 - t2) < step) {
               // we can never form a reduction
               return [];
             }
@@ -1687,7 +1687,7 @@ class Bezier {
       };
       var rc = distanceFn ? distanceFn((t + 1) / order) : d;
       if (distanceFn && !clockwise) rc = -rc;
-      var m = sqrt$1(ov.x * ov.x + ov.y * ov.y);
+      var m = sqrt(ov.x * ov.x + ov.y * ov.y);
       ov.x /= m;
       ov.y /= m;
       np[t + 1] = {
@@ -1850,7 +1850,7 @@ class Bezier {
           ref = utils.dist(pc, np1),
           d1 = utils.dist(pc, c1),
           d2 = utils.dist(pc, c2);
-    return abs$1(d1 - ref) + abs$1(d2 - ref);
+    return abs(d1 - ref) + abs(d2 - ref);
   }
 
   _iterate(errorThreshold, circles) {
@@ -1905,8 +1905,8 @@ class Bezier {
 
             if (t_e > 1) {
               let d = {
-                x: arc.x + arc.r * cos$1(arc.e),
-                y: arc.y + arc.r * sin$1(arc.e)
+                x: arc.x + arc.r * cos(arc.e),
+                y: arc.y + arc.r * sin(arc.e)
               };
               arc.e += utils.angle({
                 x: arc.x,

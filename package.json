@@ -18,7 +18,7 @@
   "funding": {
     "type": "individual",
     "url": "https://github.com/Pomax/bezierjs/blob/master/FUNDING.md"
-  },  
+  },
   "keywords": [
     "bezier",
     "curves"
@@ -30,20 +30,26 @@
     "build:docs": "npm run rollup -- ./docs/js/bezier.js",
     "build:dist": "npm run rollup -- ./dist/bezier.js",
     "build:cjs": "babel --plugins @babel/plugin-transform-modules-commonjs dist/bezier.js --out-file dist/bezier.common.js",
-    "rollup": "rollup ./src/bezier.js --format esm --file ",
-    "lint:lib": "prettier ./src/**/*.js --write",
-    "lint:test": "prettier ./test/**/*.js --write",
-    "mocha": "mocha test/**/*.js"
+    "rollup": "rollup ./src/bezier.ts -p @rollup/plugin-typescript --format esm --file ",
+    "lint:lib": "prettier ./src/**/*.ts --write",
+    "lint:test": "prettier ./test/**/*.ts --write",
+    "mocha": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register test/**/*.ts"
   },
   "devDependencies": {
     "@babel/cli": "^7.12.1",
     "@babel/core": "^7.12.3",
     "@babel/plugin-transform-modules-commonjs": "^7.12.1",
+    "@rollup/plugin-typescript": "^8.2.1",
+    "@types/chai": "^4.2.16",
+    "@types/mocha": "^8.2.2",
     "chai": "^4.2.0",
     "chai-stats": "^0.3.0",
     "mocha": "^8.1.1",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.0.5",
-    "rollup": "^2.32.1"
+    "rollup": "^2.32.1",
+    "ts-node": "^9.1.1",
+    "tslib": "^2.2.0",
+    "typescript": "^4.2.4"
   }
 }

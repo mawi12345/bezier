@@ -1,10 +1,14 @@
-import { utils } from "./utils.js";
+import { utils } from "./utils";
 
 /**
  * Poly Bezier
  * @param {[type]} curves [description]
  */
 class PolyBezier {
+  curves = [];
+
+  _3d = false;
+
   constructor(curves) {
     this.curves = [];
     this._3d = false;

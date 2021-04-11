@@ -1,4 +1,15 @@
-import { Bezier } from "./bezier.js";
+import { Bezier } from "./bezier";
+import {
+  Arc,
+  BBox,
+  DerivativeFn,
+  Line,
+  MinMax,
+  Offset,
+  Point,
+  Projection,
+  Shape,
+} from "./types";
 
 // math-inlining.
 const { abs, cos, sin, acos, atan2, sqrt, pow } = Math;
@@ -78,7 +89,7 @@ const utils = {
     0.0123412297999871995468056670700372915759,
   ],
 
-  arcfn: function (t, derivativeFn) {
+  arcfn: function (t: number, derivativeFn: DerivativeFn): number {
     const d = derivativeFn(t);
     let l = d.x * d.x + d.y * d.y;
     if (typeof d.z !== "undefined") {
@@ -87,18 +98,22 @@ const utils = {
     return sqrt(l);
   },
 
-  compute: function (t, points, _3d) {
+  compute: function (t: number, points: Point[], _3d = false): Projection {
     // shortcuts
     if (t === 0) {
-      points[0].t = 0;
-      return points[0];
+      return {
+        ...points[0],
+        t: 0,
+      };
     }
 
     const order = points.length - 1;
 
     if (t === 1) {
-      points[order].t = 1;
-      return points[order];
+      return {
+        ...points[order],
+        t: 1,
+      };
     }
 
     const mt = 1 - t;
@@ -106,8 +121,10 @@ const utils = {
 
     // constant?
     if (order === 0) {
-      points[0].t = t;
-      return points[0];
+      return {
+        ...points[0],
+        t,
+      };
     }
 
     // linear?
@@ -118,7 +135,10 @@ const utils = {
         t: t,
       };
       if (_3d) {
-        ret.z = mt * p[0].z + t * p[1].z;
+        return {
+          ...ret,
+          z: mt * p[0].z + t * p[1].z,
+        };
       }
       return ret;
     }
@@ -148,7 +168,10 @@ const utils = {
         t: t,
       };
       if (_3d) {
-        ret.z = a * p[0].z + b * p[1].z + c * p[2].z + d * p[3].z;
+        return {
+          ...ret,
+          z: a * p[0].z + b * p[1].z + c * p[2].z + d * p[3].z,
+        };
       }
       return ret;
     }
@@ -171,7 +194,12 @@ const utils = {
     return dCpts[0];
   },
 
-  computeWithRatios: function (t, points, ratios, _3d) {
+  computeWithRatios: function (
+    t: number,
+    points: Point[],
+    ratios: number[],
+    _3d: boolean
+  ): Projection {
     const mt = 1 - t,
       r = ratios,
       p = points;
@@ -191,7 +219,7 @@ const utils = {
       return {
         x: (f1 * p[0].x + f2 * p[1].x) / d,
         y: (f1 * p[0].y + f2 * p[1].y) / d,
-        z: !_3d ? false : (f1 * p[0].z + f2 * p[1].z) / d,
+        z: !_3d ? undefined : (f1 * p[0].z + f2 * p[1].z) / d,
         t: t,
       };
     }
@@ -206,7 +234,7 @@ const utils = {
       return {
         x: (f1 * p[0].x + f2 * p[1].x + f3 * p[2].x) / d,
         y: (f1 * p[0].y + f2 * p[1].y + f3 * p[2].y) / d,
-        z: !_3d ? false : (f1 * p[0].z + f2 * p[1].z + f3 * p[2].z) / d,
+        z: !_3d ? undefined : (f1 * p[0].z + f2 * p[1].z + f3 * p[2].z) / d,
         t: t,
       };
     }
@@ -223,14 +251,14 @@ const utils = {
         x: (f1 * p[0].x + f2 * p[1].x + f3 * p[2].x + f4 * p[3].x) / d,
         y: (f1 * p[0].y + f2 * p[1].y + f3 * p[2].y + f4 * p[3].y) / d,
         z: !_3d
-          ? false
+          ? undefined
           : (f1 * p[0].z + f2 * p[1].z + f3 * p[2].z + f4 * p[3].z) / d,
         t: t,
       };
     }
   },
 
-  derive: function (points, _3d) {
+  derive: function (points: Point[], _3d: boolean) {
     const dpoints = [];
     for (let p = points, d = p.length, c = d - 1; d > 1; d--, c--) {
       const list = [];
@@ -250,7 +278,7 @@ const utils = {
     return dpoints;
   },
 
-  between: function (v, m, M) {
+  between: function (v: number, m: number, M: number) {
     return (
       (m <= v && v <= M) ||
       utils.approximately(v, m) ||
@@ -258,11 +286,11 @@ const utils = {
     );
   },
 
-  approximately: function (a, b, precision) {
-    return abs(a - b) <= (precision || epsilon);
+  approximately: function (a: number, b: number, precision = epsilon) {
+    return abs(a - b) <= precision;
   },
 
-  length: function (derivativeFn) {
+  length: function (derivativeFn: DerivativeFn): number {
     const z = 0.5,
       len = utils.Tvalues.length;
 
@@ -275,7 +303,7 @@ const utils = {
     return z * sum;
   },
 
-  map: function (v, ds, de, ts, te) {
+  map: function (v: number, ds: number, de: number, ts: number, te: number) {
     const d1 = de - ds,
       d2 = te - ts,
       v2 = v - ds,
@@ -283,18 +311,21 @@ const utils = {
     return ts + d2 * r;
   },
 
-  lerp: function (r, v1, v2) {
+  lerp: function (r: number, v1: Point, v2: Point): Point {
     const ret = {
       x: v1.x + r * (v2.x - v1.x),
       y: v1.y + r * (v2.y - v1.y),
     };
     if (!!v1.z && !!v2.z) {
-      ret.z = v1.z + r * (v2.z - v1.z);
+      return {
+        ...ret,
+        z: v1.z + r * (v2.z - v1.z),
+      };
     }
     return ret;
   },
 
-  pointToString: function (p) {
+  pointToString: function (p: Point) {
     let s = p.x + "/" + p.y;
     if (typeof p.z !== "undefined") {
       s += "/" + p.z;
@@ -302,15 +333,15 @@ const utils = {
     return s;
   },
 
-  pointsToString: function (points) {
+  pointsToString: function (points: Point[]) {
     return "[" + points.map(utils.pointToString).join(", ") + "]";
   },
 
-  copy: function (obj) {
+  copy: function (obj: object) {
     return JSON.parse(JSON.stringify(obj));
   },
 
-  angle: function (o, v1, v2) {
+  angle: function (o: Point, v1: Point, v2: Point) {
     const dx1 = v1.x - o.x,
       dy1 = v1.y - o.y,
       dx2 = v2.x - o.x,
@@ -321,21 +352,21 @@ const utils = {
   },
 
   // round as string, to avoid rounding errors
-  round: function (v, d) {
+  round: function (v: number, d: number) {
     const s = "" + v;
     const pos = s.indexOf(".");
     return parseFloat(s.substring(0, pos + 1 + d));
   },
 
-  dist: function (p1, p2) {
+  dist: function (p1: Point, p2: Point) {
     const dx = p1.x - p2.x,
       dy = p1.y - p2.y;
     return sqrt(dx * dx + dy * dy);
   },
 
-  closest: function (LUT, point) {
+  closest: function (LUT: Point[], point: Point) {
     let mdist = pow(2, 63),
-      mpos,
+      mpos: number,
       d;
     LUT.forEach(function (p, idx) {
       d = utils.dist(point, p);
@@ -344,10 +375,10 @@ const utils = {
         mpos = idx;
       }
     });
-    return { mdist: mdist, mpos: mpos };
+    return { mdist, mpos };
   },
 
-  abcratio: function (t, n) {
+  abcratio: function (t: number | undefined, n: number) {
     // see ratio(t) note on http://pomax.github.io/bezierinfo/#abc
     if (n !== 2 && n !== 3) {
       return false;
@@ -362,7 +393,7 @@ const utils = {
     return abs(top / bottom);
   },
 
-  projectionratio: function (t, n) {
+  projectionratio: function (t: number, n: number) {
     // see u(t) note on http://pomax.github.io/bezierinfo/#abc
     if (n !== 2 && n !== 3) {
       return false;
@@ -377,7 +408,16 @@ const utils = {
     return top / bottom;
   },
 
-  lli8: function (x1, y1, x2, y2, x3, y3, x4, y4) {
+  lli8: function (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    x3: number,
+    y3: number,
+    x4: number,
+    y4: number
+  ) {
     const nx =
         (x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4),
       ny = (x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4),
@@ -388,7 +428,7 @@ const utils = {
     return { x: nx / d, y: ny / d };
   },
 
-  lli4: function (p1, p2, p3, p4) {
+  lli4: function (p1: Point, p2: Point, p3: Point, p4: Point) {
     const x1 = p1.x,
       y1 = p1.y,
       x2 = p2.x,
@@ -400,11 +440,11 @@ const utils = {
     return utils.lli8(x1, y1, x2, y2, x3, y3, x4, y4);
   },
 
-  lli: function (v1, v2) {
+  lli: function (v1: Offset, v2: Offset) {
     return utils.lli4(v1, v1.c, v2, v2.c);
   },
 
-  makeline: function (p1, p2) {
+  makeline: function (p1: Point, p2: Point) {
     const x1 = p1.x,
       y1 = p1.y,
       x2 = p2.x,
@@ -423,13 +463,13 @@ const utils = {
     );
   },
 
-  findbbox: function (sections) {
+  findbbox: function (sections: Bezier[]): BBox {
     let mx = nMax,
       my = nMax,
       MX = nMin,
       MY = nMin;
     sections.forEach(function (s) {
-      const bbox = s.bbox();
+      const bbox = s.bbox() as BBox; // TODO: fixme
       if (mx > bbox.x.min) mx = bbox.x.min;
       if (my > bbox.y.min) my = bbox.y.min;
       if (MX < bbox.x.max) MX = bbox.x.max;
@@ -442,12 +482,12 @@ const utils = {
   },
 
   shapeintersections: function (
-    s1,
-    bbox1,
-    s2,
-    bbox2,
-    curveIntersectionThreshold
-  ) {
+    s1: Omit<Shape, "intersections">,
+    bbox1: BBox,
+    s2: Shape,
+    bbox2: BBox,
+    curveIntersectionThreshold?: number
+  ): string[][] | number[][] {
     if (!utils.bboxoverlap(bbox1, bbox2)) return [];
     const intersections = [];
     const a1 = [s1.startcap, s1.forward, s1.back, s1.endcap];
@@ -469,7 +509,11 @@ const utils = {
     return intersections;
   },
 
-  makeshape: function (forward, back, curveIntersectionThreshold) {
+  makeshape: function (
+    forward: Bezier,
+    back: Bezier,
+    curveIntersectionThreshold?: number
+  ): Shape {
     const bpl = back.points.length;
     const fpl = forward.points.length;
     const start = utils.makeline(back.points[bpl - 1], forward.points[0]);
@@ -481,19 +525,21 @@ const utils = {
       endcap: end,
       bbox: utils.findbbox([start, forward, back, end]),
     };
-    shape.intersections = function (s2) {
-      return utils.shapeintersections(
-        shape,
-        shape.bbox,
-        s2,
-        s2.bbox,
-        curveIntersectionThreshold
-      );
+    return {
+      ...shape,
+      intersections: function (s2) {
+        return utils.shapeintersections(
+          shape,
+          shape.bbox,
+          s2,
+          s2.bbox,
+          curveIntersectionThreshold
+        );
+      },
     };
-    return shape;
   },
 
-  getminmax: function (curve, d, list) {
+  getminmax: function (curve: Bezier, d: string, list: number[]): MinMax {
     if (!list) return { min: 0, max: 0 };
     let min = nMax,
       max = nMin,
@@ -518,7 +564,7 @@ const utils = {
     return { min: min, mid: (min + max) / 2, max: max, size: max - min };
   },
 
-  align: function (points, line) {
+  align: function (points: Point[], line: Line): Point[] {
     const tx = line.p1.x,
       ty = line.p1.y,
       a = -atan2(line.p2.y - ty, line.p2.x - tx),
@@ -531,7 +577,7 @@ const utils = {
     return points.map(d);
   },
 
-  roots: function (points, line) {
+  roots: function (points: Point[], line: Line): number[] {
     line = line || { p1: { x: 0, y: 0 }, p2: { x: 1, y: 0 } };
 
     const order = points.length - 1;
@@ -624,7 +670,7 @@ const utils = {
     }
   },
 
-  droots: function (p) {
+  droots: function (p: number[]): number[] {
     // quadratic roots are easy
     if (p.length === 3) {
       const a = p[0],
@@ -656,7 +702,13 @@ const utils = {
     return [];
   },
 
-  curvature: function (t, d1, d2, _3d, kOnly) {
+  curvature: function (
+    t: number,
+    d1: Point[],
+    d2: Point[],
+    _3d = false,
+    kOnly = false
+  ) {
     let num,
       dnm,
       adk,
@@ -719,7 +771,7 @@ const utils = {
     return { k: k, r: r, dk: dk, adk: adk };
   },
 
-  inflections: function (points) {
+  inflections: function (points: Point[]): number[] {
     if (points.length < 4) return [];
 
     // FIXME: TODO: add in inflection abstraction for quartic+ curves?
@@ -752,7 +804,7 @@ const utils = {
     });
   },
 
-  bboxoverlap: function (b1, b2) {
+  bboxoverlap: function (b1: BBox, b2: BBox): boolean {
     const dims = ["x", "y"],
       len = dims.length;
 
@@ -766,7 +818,7 @@ const utils = {
     return true;
   },
 
-  expandbox: function (bbox, _bbox) {
+  expandbox: function (bbox: BBox, _bbox: BBox): void {
     if (_bbox.x.min < bbox.x.min) {
       bbox.x.min = _bbox.x.min;
     }
@@ -797,9 +849,13 @@ const utils = {
     }
   },
 
-  pairiteration: function (c1, c2, curveIntersectionThreshold) {
-    const c1b = c1.bbox(),
-      c2b = c2.bbox(),
+  pairiteration: function (
+    c1: Bezier,
+    c2: Bezier,
+    curveIntersectionThreshold?: number
+  ): string[] {
+    const c1b = c1.bbox() as BBox,
+      c2b = c2.bbox() as BBox, // TODO: fixme
       r = 100000,
       threshold = curveIntersectionThreshold || 0.5;
 
@@ -814,8 +870,8 @@ const utils = {
       ];
     }
 
-    let cc1 = c1.split(0.5),
-      cc2 = c2.split(0.5),
+    let cc1 = c1.splitSingle(0.5),
+      cc2 = c2.splitSingle(0.5),
       pairs = [
         { left: cc1.left, right: cc2.left },
         { left: cc1.left, right: cc2.right },
@@ -844,7 +900,7 @@ const utils = {
     return results;
   },
 
-  getccenter: function (p1, p2, p3) {
+  getccenter: function (p1: Point, p2: Point, p3: Point): Arc {
     const dx1 = p2.x - p1.x,
       dy1 = p2.y - p1.y,
       dx2 = p3.x - p2.x,
@@ -864,8 +920,11 @@ const utils = {
       mx2n = mx2 + dx2p,
       my2n = my2 + dy2p,
       // intersection of these lines:
-      arc = utils.lli8(mx1, my1, mx1n, my1n, mx2, my2, mx2n, my2n),
-      r = utils.dist(arc, p1);
+      arc = utils.lli8(mx1, my1, mx1n, my1n, mx2, my2, mx2n, my2n);
+    if (!arc) {
+      throw new Error("TODO");
+    }
+    const r = utils.dist(arc, p1);
 
     // arc start/end values, over mid point:
     let s = atan2(p1.y - arc.y, p1.x - arc.x),
@@ -899,13 +958,15 @@ const utils = {
       }
     }
     // assign and done.
-    arc.s = s;
-    arc.e = e;
-    arc.r = r;
-    return arc;
+    return {
+      ...arc,
+      s,
+      e,
+      r,
+    };
   },
 
-  numberSort: function (a, b) {
+  numberSort: function (a: number, b: number) {
     return a - b;
   },
 };

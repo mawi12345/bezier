@@ -6,8 +6,21 @@
   This code is MIT licensed.
 **/
 
-import { utils } from "./utils.js";
-import { PolyBezier } from "./poly-bezier.js";
+import { utils } from "./utils";
+import { PolyBezier } from "./poly-bezier";
+import {
+  ABC,
+  Arc,
+  BBox,
+  Inflection,
+  Line,
+  Offset,
+  Pair,
+  Point,
+  Projection,
+  Shape,
+  Split,
+} from "./types";
 
 // math-inlining.
 const { abs, min, max, cos, sin, acos, sqrt } = Math;
@@ -21,18 +34,45 @@ const ZERO = { x: 0, y: 0, z: 0 };
  * ...docs pending...
  */
 class Bezier {
-  constructor(coords) {
+  private _linear: boolean;
+  clockwise?: boolean;
+  _3d: boolean;
+  _t1: number;
+  _t2: number;
+  _lut: Point[];
+  _print?: string;
+  dpoints: Point[][];
+  order: number;
+  points: Point[];
+  dims: string[];
+  dimlen: number;
+  ratios?: number[];
+
+  constructor(points: Point[]);
+  constructor(coords: number[]);
+  constructor(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    x3: number,
+    y3: number,
+    x4?: number,
+    y4?: number
+  );
+  constructor(p1: Point, p2: Point, p3: Point, p4?: Point);
+  constructor(coords: any) {
     let args =
       coords && coords.forEach ? coords : Array.from(arguments).slice();
-    let coordlen = false;
+    let coordlen = 0;
 
     if (typeof args[0] === "object") {
       coordlen = args.length;
-      const newargs = [];
-      args.forEach(function (point) {
+      const newargs: number[] = [];
+      args.forEach(function (point: Point) {
         ["x", "y", "z"].forEach(function (d) {
-          if (typeof point[d] !== "undefined") {
-            newargs.push(point[d]);
+          if (typeof point[d as keyof Point] !== "undefined") {
+            newargs.push(point[d as keyof Point] as number);
           }
         });
       });
@@ -65,9 +105,9 @@ class Bezier {
       (!higher && (len === 9 || len === 12)) ||
       (coords && coords[0] && typeof coords[0].z !== "undefined"));
 
-    const points = (this.points = []);
+    const points: Point[] = (this.points = []);
     for (let idx = 0, step = _3d ? 3 : 2; idx < len; idx += step) {
-      var point = {
+      var point: Point = {
         x: args[idx],
         y: args[idx + 1],
       };
@@ -89,13 +129,11 @@ class Bezier {
 
     this._t1 = 0;
     this._t2 = 1;
+    this.dpoints = []; // make ts happy
     this.update();
   }
 
-  static quadraticFromPoints(p1, p2, p3, t) {
-    if (typeof t === "undefined") {
-      t = 0.5;
-    }
+  static quadraticFromPoints(p1: Point, p2: Point, p3: Point, t = 0.5): Bezier {
     // shortcuts, although they're really dumb
     if (t === 0) {
       return new Bezier(p2, p2, p3);
@@ -108,7 +146,13 @@ class Bezier {
     return new Bezier(p1, abc.A, p3);
   }
 
-  static cubicFromPoints(S, B, E, t, d1) {
+  static cubicFromPoints(
+    S: Point,
+    B: Point,
+    E: Point,
+    t?: number,
+    d1?: number
+  ): Bezier {
     if (typeof t === "undefined") {
       t = 0.5;
     }
@@ -173,7 +217,7 @@ class Bezier {
     return s.join(" ");
   }
 
-  setRatios(ratios) {
+  setRatios(ratios: number[]) {
     if (ratios.length !== this.points.length) {
       throw new Error("incorrect number of ratio values");
     }
@@ -214,31 +258,36 @@ class Bezier {
     return utils.length(this.derivative.bind(this));
   }
 
-  static getABC(order = 2, S, B, E, t = 0.5) {
-    const u = utils.projectionratio(t, order),
-      um = 1 - u,
+  static getABC(order = 2, S: Point, B: Point, E: Point, t = 0.5): ABC {
+    const u = utils.projectionratio(t, order);
+    if (!u) {
+      throw new Error("TODO");
+    }
+    const um = 1 - u,
       C = {
         x: u * S.x + um * E.x,
         y: u * S.y + um * E.y,
       },
-      s = utils.abcratio(t, order),
-      A = {
-        x: B.x + (B.x - C.x) / s,
-        y: B.y + (B.y - C.y) / s,
-      };
+      s = utils.abcratio(t, order);
+    if (!s) {
+      throw new Error("TODO");
+    }
+    const A = {
+      x: B.x + (B.x - C.x) / s,
+      y: B.y + (B.y - C.y) / s,
+    };
     return { A, B, C, S, E };
   }
 
-  getABC(t, B) {
+  getABC(t: number, B: Point) {
     B = B || this.get(t);
-    let S = this.points[0];
-    let E = this.points[this.order];
+    const S = this.points[0];
+    const E = this.points[this.order];
     return Bezier.getABC(this.order, S, B, E, t);
   }
 
-  getLUT(steps) {
+  getLUT(steps = 100): Point[] {
     this.verify();
-    steps = steps || 100;
     if (this._lut.length === steps) {
       return this._lut;
     }
@@ -255,11 +304,12 @@ class Bezier {
     return this._lut;
   }
 
-  on(point, error) {
+  on(point: Point, error: number): number | false {
     error = error || 5;
     const lut = this.getLUT(),
       hits = [];
-    for (let i = 0, c, t = 0; i < lut.length; i++) {
+    let t = 0;
+    for (let i = 0, c; i < lut.length; i++) {
       c = lut[i];
       if (utils.dist(c, point) < error) {
         hits.push(c);
@@ -270,7 +320,7 @@ class Bezier {
     return (t /= hits.length);
   }
 
-  project(point) {
+  project(point: Point): Projection {
     // step 1: coarse check
     const LUT = this.getLUT(),
       l = LUT.length - 1,
@@ -301,19 +351,19 @@ class Bezier {
     return p;
   }
 
-  get(t) {
+  get(t: number) {
     return this.compute(t);
   }
 
-  point(idx) {
+  point(idx: number) {
     return this.points[idx];
   }
 
-  compute(t) {
+  compute(t: number) {
     if (this.ratios) {
       return utils.computeWithRatios(t, this.points, this.ratios, this._3d);
     }
-    return utils.compute(t, this.points, this._3d, this.ratios);
+    return utils.compute(t, this.points, this._3d); // NOTE: maybe bug in original
   }
 
   raise() {
@@ -332,11 +382,11 @@ class Bezier {
     return new Bezier(np);
   }
 
-  derivative(t) {
+  derivative(t: number) {
     return utils.compute(t, this.dpoints[0], this._3d);
   }
 
-  dderivative(t) {
+  dderivative(t: number) {
     return utils.compute(t, this.dpoints[1], this._3d);
   }
 
@@ -345,7 +395,7 @@ class Bezier {
     return new Bezier(utils.align(p, { p1: p[0], p2: p[p.length - 1] }));
   }
 
-  curvature(t) {
+  curvature(t: number) {
     return utils.curvature(t, this.dpoints[0], this.dpoints[1], this._3d);
   }
 
@@ -353,17 +403,17 @@ class Bezier {
     return utils.inflections(this.points);
   }
 
-  normal(t) {
+  normal(t: number): Point {
     return this._3d ? this.__normal3(t) : this.__normal2(t);
   }
 
-  __normal2(t) {
+  private __normal2(t: number) {
     const d = this.derivative(t);
     const q = sqrt(d.x * d.x + d.y * d.y);
     return { x: -d.y / q, y: d.x / q };
   }
 
-  __normal3(t) {
+  private __normal3(t: number) {
     // see http://stackoverflow.com/questions/25453159
     const r1 = this.derivative(t),
       r2 = this.derivative(t + 0.01),
@@ -406,10 +456,10 @@ class Bezier {
     return n;
   }
 
-  hull(t) {
+  hull(t: number): Point[] {
     let p = this.points,
-      _p = [],
-      q = [],
+      _p: Point[] = [],
+      q: Point[] = [],
       idx = 0;
     q[idx++] = p[0];
     q[idx++] = p[1];
@@ -430,7 +480,29 @@ class Bezier {
     return q;
   }
 
-  split(t1, t2) {
+  splitSingle(t: number): Split {
+    const q = this.hull(t);
+    const left =
+      this.order === 2
+        ? new Bezier([q[0], q[3], q[5]])
+        : new Bezier([q[0], q[4], q[7], q[9]]);
+    const right =
+      this.order === 2
+        ? new Bezier([q[5], q[4], q[2]])
+        : new Bezier([q[9], q[8], q[6], q[3]]);
+    return {
+      left,
+      right,
+    };
+  }
+
+  splitDouble(t1: number, t2: number): Bezier {
+    const result = this.splitSingle(t1);
+    const scaledT2 = utils.map(t2, t1, 1, 0, 1);
+    return result.right.split(t2).left;
+  }
+  /*
+  split(t1: number, t2?: number): Split {
     // shortcuts
     if (t1 === 0 && !!t2) {
       return this.split(t2).left;
@@ -468,28 +540,31 @@ class Bezier {
     t2 = utils.map(t2, t1, 1, 0, 1);
     return result.right.split(t2).left;
   }
+  */
 
-  extrema() {
-    const result = {};
+  extrema(): Inflection {
+    const result: Inflection = {
+      x: [],
+      y: [],
+      values: [],
+    };
     let roots = [];
 
-    this.dims.forEach(
-      function (dim) {
-        let mfn = function (v) {
-          return v[dim];
-        };
-        let p = this.dpoints[0].map(mfn);
-        result[dim] = utils.droots(p);
-        if (this.order === 3) {
-          p = this.dpoints[1].map(mfn);
-          result[dim] = result[dim].concat(utils.droots(p));
-        }
-        result[dim] = result[dim].filter(function (t) {
-          return t >= 0 && t <= 1;
-        });
-        roots = roots.concat(result[dim].sort(utils.numberSort));
-      }.bind(this)
-    );
+    this.dims.forEach((dim: string) => {
+      let mfn = function (v) {
+        return v[dim];
+      };
+      let p = this.dpoints[0].map(mfn);
+      result[dim] = utils.droots(p);
+      if (this.order === 3) {
+        p = this.dpoints[1].map(mfn);
+        result[dim] = result[dim].concat(utils.droots(p));
+      }
+      result[dim] = result[dim].filter(function (t) {
+        return t >= 0 && t <= 1;
+      });
+      roots = roots.concat(result[dim].sort(utils.numberSort));
+    });
 
     result.values = roots.sort(utils.numberSort).filter(function (v, idx) {
       return roots.indexOf(v) === idx;
@@ -506,30 +581,34 @@ class Bezier {
         result[d] = utils.getminmax(this, d, extrema[d]);
       }.bind(this)
     );
-    return result;
+    return result as BBox;
   }
 
-  overlaps(curve) {
+  overlaps(curve: Bezier): boolean {
     const lbbox = this.bbox(),
       tbbox = curve.bbox();
     return utils.bboxoverlap(lbbox, tbbox);
   }
 
-  offset(t, d) {
-    if (typeof d !== "undefined") {
-      const c = this.get(t),
-        n = this.normal(t);
-      const ret = {
-        c: c,
-        n: n,
-        x: c.x + n.x * d,
-        y: c.y + n.y * d,
+  offsetD(t: number, d: number): Offset {
+    const c = this.get(t),
+      n = this.normal(t);
+    const ret = {
+      c: c,
+      n: n,
+      x: c.x + n.x * d,
+      y: c.y + n.y * d,
+    };
+    if (this._3d) {
+      return {
+        ...ret,
+        z: c.z + n.z * d,
       };
-      if (this._3d) {
-        ret.z = c.z + n.z * d;
-      }
-      return ret;
     }
+    return ret;
+  }
+
+  offset(t: number): Bezier[] {
     if (this._linear) {
       const nv = this.normal(0),
         coords = this.points.map(function (p) {
@@ -538,7 +617,10 @@ class Bezier {
             y: p.y + t * nv.y,
           };
           if (p.z && nv.z) {
-            ret.z = p.z + t * nv.z;
+            return {
+              ...ret,
+              z: p.z + t * nv.z,
+            };
           }
           return ret;
         });
@@ -567,15 +649,15 @@ class Bezier {
     return abs(acos(s)) < pi / 3;
   }
 
-  reduce() {
+  reduce(): Bezier[] {
     // TODO: examine these var types in more detail...
     let i,
       t1 = 0,
       t2 = 0,
       step = 0.01,
-      segment,
-      pass1 = [],
-      pass2 = [];
+      segment: Bezier,
+      pass1: Bezier[] = [],
+      pass2: Bezier[] = [];
     // first pass: split on extrema
     let extrema = this.extrema().values;
     if (extrema.indexOf(0) === -1) {
@@ -587,7 +669,7 @@ class Bezier {
 
     for (t1 = extrema[0], i = 1; i < extrema.length; i++) {
       t2 = extrema[i];
-      segment = this.split(t1, t2);
+      segment = this.splitDouble(t1, t2);
       segment._t1 = t1;
       segment._t2 = t2;
       pass1.push(segment);
@@ -600,14 +682,14 @@ class Bezier {
       t2 = 0;
       while (t2 <= 1) {
         for (t2 = t1 + step; t2 <= 1 + step; t2 += step) {
-          segment = p1.split(t1, t2);
+          segment = p1.splitDouble(t1, t2);
           if (!segment.simple()) {
             t2 -= step;
             if (abs(t1 - t2) < step) {
               // we can never form a reduction
               return [];
             }
-            segment = p1.split(t1, t2);
+            segment = p1.splitDouble(t1, t2);
             segment._t1 = utils.map(t1, 0, 1, p1._t1, p1._t2);
             segment._t2 = utils.map(t2, 0, 1, p1._t1, p1._t2);
             pass2.push(segment);
@@ -617,7 +699,7 @@ class Bezier {
         }
       }
       if (t1 < 1) {
-        segment = p1.split(t1, 1);
+        segment = p1.splitDouble(t1, 1);
         segment._t1 = utils.map(t1, 0, 1, p1._t1, p1._t2);
         segment._t2 = p1._t2;
         pass2.push(segment);
@@ -626,9 +708,9 @@ class Bezier {
     return pass2;
   }
 
-  scale(d) {
+  scale(d: Function | number) {
     const order = this.order;
-    let distanceFn = false;
+    let distanceFn: Function | false = false;
     if (typeof d === "function") {
       distanceFn = d;
     }
@@ -640,7 +722,7 @@ class Bezier {
     const clockwise = this.clockwise;
     const r1 = distanceFn ? distanceFn(0) : d;
     const r2 = distanceFn ? distanceFn(1) : d;
-    const v = [this.offset(0, 10), this.offset(1, 10)];
+    const v = [this.offsetD(0, 10), this.offsetD(1, 10)];
     const points = this.points;
     const np = [];
     const o = utils.lli4(v[0], v[0].c, v[1], v[1].c);
@@ -692,7 +774,7 @@ class Bezier {
     return new Bezier(np);
   }
 
-  outline(d1, d2, d3, d4) {
+  outline(d1: number, d2?: number, d3?: number, d4?: number): PolyBezier {
     d2 = typeof d2 === "undefined" ? d1 : d2;
     const reduced = this.reduce(),
       len = reduced.length,
@@ -705,7 +787,13 @@ class Bezier {
 
     const graduated = typeof d3 !== "undefined" && typeof d4 !== "undefined";
 
-    function linearDistanceFunction(s, e, tlen, alen, slen) {
+    function linearDistanceFunction(
+      s: number,
+      e: number,
+      tlen: number,
+      alen: number,
+      slen: number
+    ) {
       return function (v) {
         const f1 = alen / tlen,
           f2 = (alen + slen) / tlen,
@@ -719,14 +807,14 @@ class Bezier {
       const slen = segment.length();
       if (graduated) {
         fcurves.push(
-          segment.scale(linearDistanceFunction(d1, d3, tlen, alen, slen))
+          segment.scale(linearDistanceFunction(d1, d3!, tlen, alen, slen))
         );
         bcurves.push(
-          segment.scale(linearDistanceFunction(-d2, -d4, tlen, alen, slen))
+          segment.scale(linearDistanceFunction(-d2, -d4!, tlen, alen, slen))
         );
       } else {
         fcurves.push(segment.scale(d1));
-        bcurves.push(segment.scale(-d2));
+        bcurves.push(segment.scale(-d2!));
       }
       alen += slen;
     });
@@ -757,7 +845,11 @@ class Bezier {
     return new PolyBezier(segments);
   }
 
-  outlineshapes(d1, d2, curveIntersectionThreshold) {
+  outlineshapes(
+    d1: number,
+    d2: number,
+    curveIntersectionThreshold?: number
+  ): Shape[] {
     d2 = d2 || d1;
     const outline = this.outline(d1, d2).curves;
     const shapes = [];
@@ -774,22 +866,20 @@ class Bezier {
     return shapes;
   }
 
-  intersects(curve, curveIntersectionThreshold) {
+  intersects(
+    curve?: Bezier | Line,
+    curveIntersectionThreshold?: number
+  ): string[] | number[] {
     if (!curve) return this.selfintersects(curveIntersectionThreshold);
-    if (curve.p1 && curve.p2) {
+    if (curve instanceof Bezier) {
+      const r = curve.reduce();
+      return this.curveintersects(this.reduce(), r, curveIntersectionThreshold);
+    } else {
       return this.lineIntersects(curve);
     }
-    if (curve instanceof Bezier) {
-      curve = curve.reduce();
-    }
-    return this.curveintersects(
-      this.reduce(),
-      curve,
-      curveIntersectionThreshold
-    );
   }
 
-  lineIntersects(line) {
+  lineIntersects(line: Line) {
     const mx = min(line.p1.x, line.p2.x),
       my = min(line.p1.y, line.p2.y),
       MX = max(line.p1.x, line.p2.x),
@@ -800,14 +890,14 @@ class Bezier {
     });
   }
 
-  selfintersects(curveIntersectionThreshold) {
+  selfintersects(curveIntersectionThreshold: number) {
     // "simple" curves cannot intersect with their direct
     // neighbour, so for each segment X we check whether
     // it intersects [0:x-2][x+2:last].
 
     const reduced = this.reduce(),
       len = reduced.length - 2,
-      results = [];
+      results: string[] = [];
 
     for (let i = 0, result, left, right; i < len; i++) {
       left = reduced.slice(i, i + 1);
@@ -818,7 +908,11 @@ class Bezier {
     return results;
   }
 
-  curveintersects(c1, c2, curveIntersectionThreshold) {
+  curveintersects(
+    c1: Bezier[],
+    c2: Bezier[],
+    curveIntersectionThreshold?: number
+  ): string[] {
     const pairs = [];
     // step 1: pair off any overlapping segments
     c1.forEach(function (l) {
@@ -843,12 +937,12 @@ class Bezier {
     return intersections;
   }
 
-  arcs(errorThreshold) {
+  arcs(errorThreshold: number) {
     errorThreshold = errorThreshold || 0.5;
     return this._iterate(errorThreshold, []);
   }
 
-  _error(pc, np1, s, e) {
+  _error(pc: Point, np1: Point, s: number, e: number) {
     const q = (e - s) / 4,
       c1 = this.get(s + q),
       c2 = this.get(e - q),
@@ -858,7 +952,7 @@ class Bezier {
     return abs(d1 - ref) + abs(d2 - ref);
   }
 
-  _iterate(errorThreshold, circles) {
+  _iterate(errorThreshold: number, circles: Arc[]) {
     let t_s = 0,
       t_e = 1,
       safety;
@@ -871,15 +965,15 @@ class Bezier {
 
       // points:
       let np1 = this.get(t_s),
-        np2,
-        np3,
-        arc,
-        prev_arc;
+        np2: Projection,
+        np3: Projection,
+        arc: Arc,
+        prev_arc: Arc;
 
       // booleans:
       let curr_good = false,
         prev_good = false,
-        done;
+        done: boolean;
 
       // numbers:
       let t_m = t_e,

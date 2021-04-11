@@ -1,9 +1,9 @@
-import { Bezier } from "../../src/bezier.js";
+import { Bezier } from "../../src/bezier";
 const utils = Bezier.getUtils();
 
 import chai from "chai";
 import chaiStats from "chai-stats";
-const assert = chai.use(chaiStats).assert;
+const assert = chai.use(chaiStats).assert as any;
 
 describe(`Cubic bezier`, () => {
   const run = (b) => {
